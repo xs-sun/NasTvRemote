@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">绿联NAS遥控助手</string>
+    <string name="accessibility_desc">监听小米电视蓝牙遥控器并转发至绿联 NAS HDMI 桌面</string>
+</resources>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    width: 1280px;
+    height: 720px;
+    background: radial-gradient(circle at 35% 50%, #152238 0%, #0B0F19 70%, #06090F 100%);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 背景科技装饰光晕 */
+  .bg-glow-cyan {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    left: 80px;
+    top: 60px;
+    background: radial-gradient(circle, rgba(0, 229, 255, 0.15) 0%, rgba(0, 230, 118, 0.08) 50%, transparent 70%);
+    filter: blur(50px);
+    z-index: 1;
+    pointer-events: none;
+  }
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* 左侧 3D 遥控与 NAS 图形区 */
+  .left-container {
+    width: 540px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 50px;
+    z-index: 2;
+  }
+  .icon-wrapper {
+    width: 440px;
+    height: 440px;
+    border-radius: 90px;
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.8),
+      0 0 40px rgba(0, 230, 118, 0.3),
+      0 0 80px rgba(0, 229, 255, 0.2);
+    border: 3px solid rgba(0, 229, 255, 0.4);
+    overflow: hidden;
+    position: relative;
+  }
+  .icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 右侧排版区 */
+  .right-container {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 40px;
+    padding-right: 60px;
+    z-index: 2;
+  }
+
+  .brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #00E5FF;
+    width: fit-content;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00E676;
+    box-shadow: 0 0 10px #00E676;
+  }
+
+  .title {
+    font-size: 62px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #D8E4F0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.6));
+  }
+
+  /* 核心 Slogan 胶囊发光徽标 */
+  .slogan-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #00E676 0%, #00C853 50%, #00B0FF 100%);
+    color: #051410;
+    font-size: 26px;
+    font-weight: 800;
+    white-space: nowrap;
+    padding: 10px 24px;
+    border-radius: 40px;
+    width: fit-content;
+    box-shadow: 
+      0 0 30px rgba(0, 230, 118, 0.5),
+      0 4px 15px rgba(0, 0, 0, 0.4);
+    margin-bottom: 28px;
+    letter-spacing: 1px;
+  }
+  .slogan-icon {
+    font-size: 24px;
+  }
+
+  /* 亮点特性标签组 */
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 500;
+    color: #A4B3C6;
+  }
+  .feature-tag {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 4px 12px;
+    border-radius: 8px;
+    color: #E2E8F0;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .check-mark {
+    color: #00E676;
+    font-size: 22px;
+    font-weight: bold;
+    text-shadow: 0 0 10px #00E676;
+  }
+</style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow-cyan"></div>
+
+  <div class="left-container">
+    <div class="icon-wrapper">
+      <img class="icon-img" src="app/src/main/res/drawable/app_icon.png" alt="Icon">
+    </div>
+  </div>
+
+  <div class="right-container">
+    <div class="brand-badge">
+      <span class="dot"></span>
+      UGREEN NAS × ANDROID TV
+    </div>
+
+    <h1 class="title">绿联 NAS 遥控助手</h1>
+
+    <div class="slogan-pill">
+      <span class="slogan-icon">⚡</span>
+      免 CEC 遥控直连 • 4K HDMI 极速中继
+    </div>
+
+    <div class="features">
+      <div class="feature-item">
+        <span class="check-mark">✓</span>
+        <span class="feature-tag">硬件直驱</span>
+        <span>物理插线自动侦测，无感控制绿联 NAS 桌面系统</span>
+      </div>
+      <div class="feature-item">
+        <span class="check-mark">✓</span>
+        <span class="feature-tag">画中画避让</span>
+        <span>焦点智能识别，电视桌面画中画预览绝不抢占遥控</span>
+      </div>
+      <div class="feature-item">
+        <span class="check-mark">✓</span>
+        <span class="feature-tag">零延迟</span>
+        <span>局域网原生中继 &lt; 2ms，音量电源无缝原生透传</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

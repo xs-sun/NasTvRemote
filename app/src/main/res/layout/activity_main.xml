@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="#10141C"
+    android:padding="20dp">
+
+    <!-- 左侧：状态与核心配置卡片 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.1"
+        android:orientation="vertical"
+        android:background="#1A222D"
+        android:padding="18dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="绿联 NAS 遥控助手 (TV 端)"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="服务状态："
+                android:textColor="#AAAAAA"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="正在检测..."
+                android:textColor="#4CAF50"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="当前信号："
+                android:textColor="#AAAAAA"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@+id/tv_active_port"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="正在检测信号源状态..."
+                android:textColor="#90CAF9"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 权限引导卡片（未开启无障碍时醒目提示） -->
+        <LinearLayout
+            android:id="@+id/layout_permission_warning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#372020"
+            android:padding="10dp"
+            android:layout_marginTop="8dp"
+            android:visibility="gone">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚠️ 核心权限未开启：需要开启无障碍服务"
+                android:textColor="#FF5252"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="请点击下方按钮，在系统设置中找到【绿联NAS遥控助手】并开启。"
+                android:textColor="#FFCDD2"
+                android:textSize="11sp" />
+            <Button
+                android:id="@+id/btn_grant_accessibility"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="6dp"
+                android:text="一键前往系统开启无障碍服务"
+                android:background="@drawable/tv_focus_btn_warning_bg"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <!-- 开关区域 -->
+        <Switch
+            android:id="@+id/switch_service"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="开始按键中继监听"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:background="@drawable/tv_focus_item_bg"
+            android:padding="8dp"
+            android:focusable="true" />
+
+        <Switch
+            android:id="@+id/switch_boot"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="开机自动启动服务"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:background="@drawable/tv_focus_item_bg"
+            android:padding="8dp"
+            android:focusable="true" />
+
+        <!-- 指定生效 HDMI 端口（多选） -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="指定生效的 HDMI 端口 (多选)："
+            android:textColor="#FFB300"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="4dp">
+            <CheckBox
+                android:id="@+id/cb_hdmi_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="HDMI 1 (检测中...)"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:background="@drawable/tv_focus_item_bg"
+                android:padding="6dp"
+                android:focusable="true" />
+            <CheckBox
+                android:id="@+id/cb_hdmi_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="HDMI 2 (检测中...)"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:background="@drawable/tv_focus_item_bg"
+                android:padding="6dp"
+                android:focusable="true" />
+            <CheckBox
+                android:id="@+id/cb_hdmi_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="HDMI 3 (检测中...)"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:background="@drawable/tv_focus_item_bg"
+                android:padding="6dp"
+                android:focusable="true" />
+            <Switch
+                android:id="@+id/switch_generic_mode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="非桌面通用模式 (非小米电视/投影仪推荐)"
+                android:textColor="#B0BEC5"
+                android:textSize="12sp"
+                android:background="@drawable/tv_focus_item_bg"
+                android:padding="6dp"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="提示：未勾选的 HDMI 端口（如游戏机/盒子）或电视桌面遥控器完全放行，互不干扰。"
+            android:textColor="#78909C"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- 右侧：NAS 地址设置与实时日志卡片 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.0"
+        android:layout_marginStart="18dp"
+        android:orientation="vertical"
+        android:background="#1A222D"
+        android:padding="18dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="绿联 NAS 控制地址"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+            <EditText
+                android:id="@+id/edit_nas_ip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2.2"
+                android:hint="NAS IP"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/tv_focus_edit_bg"
+                android:padding="8dp"
+                android:textSize="14sp"
+                android:focusable="true" />
+            <EditText
+                android:id="@+id/edit_nas_port"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:hint="端口"
+                android:text="9999"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/tv_focus_edit_bg"
+                android:padding="8dp"
+                android:textSize="14sp"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_test_connection"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:layout_marginTop="8dp"
+            android:text="测试连通性"
+            android:background="@drawable/tv_focus_btn_bg"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:focusable="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="实时运行日志："
+            android:textColor="#888888"
+            android:textSize="13sp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="4dp"
+            android:background="#0A0E14"
+            android:padding="8dp">
+            <TextView
+                android:id="@+id/tv_log"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#81C784"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
+                android:text="系统就绪，等待服务启动..." />
+        </ScrollView>
+    </LinearLayout>
+</LinearLayout>

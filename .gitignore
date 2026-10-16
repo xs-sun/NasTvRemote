@@ -1,0 +1,28 @@
+# Build output
+build/
+bin/
+gen/
+out/
+*.apk
+*.ap_
+*.dex
+
+# Keystores & sensitive credentials
+*.keystore
+*.jks
+debug.keystore
+
+# Temporary and local test screenshots
+/screen*.png
+/tv_*.png
+/tmp/
+
+# OS and IDE files
+.DS_Store
+.idea/
+*.iml
+.gradle/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
