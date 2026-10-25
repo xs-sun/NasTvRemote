@@ -6,13 +6,15 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.ContentObserver;
+import android.os.Handler;
+import android.os.Looper;
 import android.preference.PreferenceManager;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -28,8 +30,8 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
     private volatile String currentPackageName = "";
     private volatile String currentClassName = "";
     private volatile int cachedStreamingPort = 0;
-    private volatile boolean isHdmiFullscreenFocused = false;
     private ScheduledExecutorService backgroundExecutor;
+    private ContentObserver settingsObserver;
 
     private long backPressTime = 0;
     private int backRepeats = 0;
@@ -54,15 +56,16 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
 
         Log.i(TAG, "KeyRelayAccessibilityService connected successfully with FLAG_REQUEST_FILTER_KEY_EVENTS!");
 
-        // 后台高频焦点检测线程（对齐此前 Go 守护进程逻辑：每 350ms 检测一次 mCurrentFocus）
-        // 彻底解决电视桌面 HDMI 画中画（PiP）卡片与全屏冲突问题
+        // 注册系统无障碍服务变更监听（防止果园TV或第三方桌面覆盖）
+        registerSettingsObserver();
+
+        // 后台守护与端口检测线程：定期检测自愈守护与 HDMI 活跃流
         backgroundExecutor = Executors.newSingleThreadScheduledExecutor();
         backgroundExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 try {
-                    boolean focused = checkHdmiFocusedViaDumpsys();
-                    isHdmiFullscreenFocused = focused;
+                    ensureServicePersistence();
 
                     int p = HdmiPortDetector.detectActiveStreamingPort(KeyRelayAccessibilityService.this);
                     if (p != cachedStreamingPort) {
@@ -70,50 +73,60 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
                     }
                 } catch (Exception ignored) {}
             }
-        }, 100, 350, TimeUnit.MILLISECONDS);
+        }, 500, 1000, TimeUnit.MILLISECONDS);
+    }
+
+    private void registerSettingsObserver() {
+        try {
+            settingsObserver = new ContentObserver(new Handler(Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    super.onChange(selfChange);
+                    ensureServicePersistence();
+                }
+            };
+            getContentResolver().registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+                false,
+                settingsObserver
+            );
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to register settings observer: " + e.getMessage());
+        }
     }
 
     /**
-     * 参考此前无 APP 守护程序的严格判定：
-     * 仅当系统前台焦点确为 ExternalSourceActivity 时，才判定为全屏 HDMI，杜绝画中画误触发
+     * 自愈守护：若第三方应用覆盖了 ENABLED_ACCESSIBILITY_SERVICES，自动恢复追加
      */
-    private boolean checkHdmiFocusedViaDumpsys() {
+    private void ensureServicePersistence() {
         try {
-            Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "dumpsys window | grep mCurrentFocus"});
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line = reader.readLine();
-            reader.close();
-            process.destroy();
-
-            if (line != null) {
-                // 1. 小米电视全屏 HDMI 播放器
-                if (line.contains("ExternalSourceActivity")) {
-                    return true;
-                }
-                // 2. 如果在电视主界面（含画中画卡片预览模式）或自身应用，绝不生效
-                if (line.contains("com.mitv.tvhome") || line.contains("MainActivityUserMode") || line.contains("com.tao7.nasremote")) {
-                    return false;
-                }
-                // 3. 兼容其他品牌电视全屏 HDMI
-                if (line.contains("com.sony.dtv.tvinput") || 
-                    line.contains("com.tcl.tvinput") || 
-                    line.contains("com.hisense.tv.videoinput") ||
-                    line.contains("com.google.android.tv") ||
-                    line.contains("com.android.tv")) {
-                    return true;
+            if (prefs == null) return;
+            boolean isEnabled = prefs.getBoolean("service_enabled", true);
+            boolean userDisabled = prefs.getBoolean("user_disabled", false);
+            if (isEnabled && !userDisabled) {
+                if (!AccessibilityHelper.isServiceInSettings(this)) {
+                    Log.w(TAG, "Watchdog: KeyRelayAccessibilityService missing from settings, restoring...");
+                    AccessibilityHelper.enableServiceViaSettings(this);
                 }
             }
         } catch (Exception ignored) {}
-        return false;
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         isServiceConnected = false;
+        if (settingsObserver != null) {
+            try {
+                getContentResolver().unregisterContentObserver(settingsObserver);
+            } catch (Exception ignored) {}
+        }
         if (backgroundExecutor != null) {
             backgroundExecutor.shutdownNow();
         }
+
+        // 若非用户主动关闭，触发自愈重连
+        ensureServicePersistence();
         Log.i(TAG, "KeyRelayAccessibilityService destroyed");
     }
 
@@ -123,14 +136,6 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             if (event.getPackageName() != null) currentPackageName = event.getPackageName().toString();
             if (event.getClassName() != null) currentClassName = event.getClassName().toString();
             Log.d(TAG, "Window changed: pkg=" + currentPackageName + ", cls=" + currentClassName);
-
-            // 快速事件响应：如果明确切到全屏 ExternalSourceActivity，即刻激活
-            if (currentClassName.contains("ExternalSourceActivity")) {
-                isHdmiFullscreenFocused = true;
-            } else if (isLauncherPackage(currentPackageName) || getPackageName().equals(currentPackageName)) {
-                // 切到桌面或自身，即刻停用拦截
-                isHdmiFullscreenFocused = false;
-            }
         }
     }
 
@@ -265,8 +270,10 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             return false;
         }
 
-        // 2. 如果在电视主界面（Launcher），放行（绝不拦截画中画小卡片）
-        if (isLauncherPackage(currentPackageName) || "com.mitv.tvhome".equals(currentPackageName)) {
+        // 2. 如果在电视主界面（小米桌面、果园桌面或第三方桌面），放行（绝不拦截画中画小卡片或桌面浏览）
+        if (isLauncherPackage(currentPackageName) || 
+            "com.mitv.tvhome".equals(currentPackageName) ||
+            "app.orchard.tv".equals(currentPackageName)) {
             return false;
         }
 
@@ -276,16 +283,23 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             return true;
         }
 
-        // 4. 小米电视专属判定（完全对齐此前 Go 守护程序逻辑）：
-        // 严格检查 mCurrentFocus 是否确为 ExternalSourceActivity，杜绝画中画
-        if (isHdmiFullscreenFocused) {
+        // 4. 小米电视全屏 HDMI 专属判定：
+        // 前台包名为小米电视官方播放器 com.xiaomi.mitv.tvplayer，或类名包含 ExternalSourceActivity
+        if ("com.xiaomi.mitv.tvplayer".equals(currentPackageName) ||
+            (currentClassName != null && currentClassName.contains("ExternalSourceActivity"))) {
             return true;
         }
 
-        // 5. 快速事件驱动兜底：若前台类名确为 ExternalSourceActivity
-        if (currentClassName != null && currentClassName.contains("ExternalSourceActivity")) {
-            return true;
-        }
+        // 5. 交互窗口快速探针（官方 Accessibility API，无 SELinux 风险）
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root != null && root.getPackageName() != null) {
+                String pkg = root.getPackageName().toString();
+                if ("com.xiaomi.mitv.tvplayer".equals(pkg)) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {}
 
         // 6. 其他品牌电视全屏 HDMI 播放器
         if (currentPackageName != null) {
@@ -308,6 +322,7 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             return false;
         }
         if ("com.mitv.tvhome".equals(pkg) || 
+            "app.orchard.tv".equals(pkg) ||
             "com.google.android.tvlauncher".equals(pkg) || 
             "com.android.tv.launcher".equals(pkg)) {
             return true;

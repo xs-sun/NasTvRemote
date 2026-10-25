@@ -30,13 +30,26 @@ public class AccessibilityHelper {
         return false;
     }
 
+    public static boolean isServiceInSettings(Context context) {
+        try {
+            String current = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (current == null) return false;
+            String myShortService = new ComponentName(context, KeyRelayAccessibilityService.class).flattenToShortString();
+            String myLongService = new ComponentName(context, KeyRelayAccessibilityService.class).flattenToString();
+            return current.contains(myShortService) || current.contains(myLongService);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     public static boolean enableServiceViaSettings(Context context) {
         try {
             String myShortService = new ComponentName(context, KeyRelayAccessibilityService.class).flattenToShortString();
+            String myLongService = new ComponentName(context, KeyRelayAccessibilityService.class).flattenToString();
             String current = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
             if (current == null || current.isEmpty()) {
                 current = myShortService;
-            } else if (!current.contains(myShortService)) {
+            } else if (!current.contains(myShortService) && !current.contains(myLongService)) {
                 current = current + ":" + myShortService;
             }
             Settings.Secure.putString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, current);

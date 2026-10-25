@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
 
         // 服务开关监听
         switchService.setOnCheckedChangeListener((btn, isChecked) -> {
-            prefs.edit().putBoolean("service_enabled", isChecked).apply();
+            prefs.edit().putBoolean("service_enabled", isChecked).putBoolean("user_disabled", !isChecked).apply();
             if (isChecked) {
                 boolean isRunning = AccessibilityHelper.isServiceRunning(MainActivity.this);
                 if (!isRunning) {
