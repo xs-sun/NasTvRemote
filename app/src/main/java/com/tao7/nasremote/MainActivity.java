@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
-import android.preference.PreferenceManager;
 import android.view.View;
 import android.widget.*;
 import java.util.HashSet;
@@ -15,6 +14,9 @@ public class MainActivity extends Activity {
 
     private Switch switchService;
     private Switch switchBoot;
+    private Switch switchAutoWake;
+    private Switch switchAutoStandby;
+    private Switch switchPowerStandby;
     private Switch switchGenericMode;
     private View layoutPermissionWarning;
     private Button btnGrantAccessibility;
@@ -42,6 +44,9 @@ public class MainActivity extends Activity {
     private void initViews() {
         switchService = findViewById(R.id.switch_service);
         switchBoot = findViewById(R.id.switch_boot);
+        switchAutoWake = findViewById(R.id.switch_auto_wake);
+        switchAutoStandby = findViewById(R.id.switch_auto_standby);
+        switchPowerStandby = findViewById(R.id.switch_power_standby);
         switchGenericMode = findViewById(R.id.switch_generic_mode);
         layoutPermissionWarning = findViewById(R.id.layout_permission_warning);
         btnGrantAccessibility = findViewById(R.id.btn_grant_accessibility);
@@ -89,6 +94,22 @@ public class MainActivity extends Activity {
             appendLog(isChecked ? "开机自启已启用" : "开机自启已禁用");
         });
 
+        // 智能电源与开关联动
+        switchAutoWake.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean("auto_wake_on_enter", isChecked).apply();
+            appendLog(isChecked ? "已启用切入 HDMI 自动唤醒 NAS 桌面" : "已停用切入 HDMI 自动唤醒");
+        });
+
+        switchAutoStandby.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean("auto_standby_on_exit", isChecked).apply();
+            appendLog(isChecked ? "已启用切出 HDMI / 返回桌面自动休眠 NAS (暂停播放)" : "已停用切出 HDMI 自动休眠");
+        });
+
+        switchPowerStandby.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean("power_standby", isChecked).apply();
+            appendLog(isChecked ? "已启用电视关机/熄屏联动休眠 (支持小爱语音)" : "已停用电视关机联动休眠");
+        });
+
         // 通用模式开关监听
         switchGenericMode.setOnCheckedChangeListener((btn, isChecked) -> {
             prefs.edit().putBoolean("generic_hdmi_mode", isChecked).apply();
@@ -108,6 +129,9 @@ public class MainActivity extends Activity {
     private void loadSettings() {
         switchService.setChecked(prefs.getBoolean("service_enabled", true));
         switchBoot.setChecked(prefs.getBoolean("boot_autostart", true));
+        switchAutoWake.setChecked(prefs.getBoolean("auto_wake_on_enter", true));
+        switchAutoStandby.setChecked(prefs.getBoolean("auto_standby_on_exit", true));
+        switchPowerStandby.setChecked(prefs.getBoolean("power_standby", true));
         switchGenericMode.setChecked(prefs.getBoolean("generic_hdmi_mode", false));
         editNasIp.setText(prefs.getString("nas_ip", "192.168.31.2"));
         editNasPort.setText(prefs.getString("nas_port", "9999"));
@@ -115,7 +139,6 @@ public class MainActivity extends Activity {
         Set<String> ports = prefs.getStringSet("selected_hdmi_ports", null);
         Map<Integer, HdmiPortDetector.PortInfo> detected = HdmiPortDetector.detectAllPorts(this);
 
-        // 如果未配置过，或者保存的端口全都未插线但检测到有实际插线端口，自动对齐到真实插线端口
         boolean hasPluggedSelection = false;
         if (ports != null && !ports.isEmpty()) {
             for (int p = 1; p <= 3; p++) {
@@ -224,15 +247,15 @@ public class MainActivity extends Activity {
                 if (info.isStreaming) {
                     streamingPort = i;
                     cb.setText("HDMI " + i + "  [● 已插线 / 全屏活跃中]");
-                    cb.setTextColor(0xFF00E676); // 荧光绿
+                    cb.setTextColor(0xFF00E676);
                 } else if (info.isPlugged) {
                     cb.setText("HDMI " + i + "  [● 已插线 / 待机备用]");
-                    cb.setTextColor(0xFF40C4FF); // 科技亮蓝
+                    cb.setTextColor(0xFF40C4FF);
                     if (firstPlugged == 0) firstPlugged = i;
                     pluggedCount++;
                 } else {
                     cb.setText("HDMI " + i + "  [○ 未插线]");
-                    cb.setTextColor(0xFF90A4AE); // 暗灰
+                    cb.setTextColor(0xFF90A4AE);
                 }
             }
         }

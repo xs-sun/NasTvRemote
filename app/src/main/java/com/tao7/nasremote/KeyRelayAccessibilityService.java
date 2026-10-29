@@ -2,14 +2,16 @@ package com.tao7.nasremote;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
 import android.os.Handler;
 import android.os.Looper;
-import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -32,6 +34,10 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
     private volatile int cachedStreamingPort = 0;
     private ScheduledExecutorService backgroundExecutor;
     private ContentObserver settingsObserver;
+    private BroadcastReceiver powerStateReceiver;
+
+    private volatile boolean wasHdmiActive = false;
+    private volatile long lastTransitionTime = 0;
 
     private long backPressTime = 0;
     private int backRepeats = 0;
@@ -59,6 +65,11 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
         // 注册系统无障碍服务变更监听（防止果园TV或第三方桌面覆盖）
         registerSettingsObserver();
 
+        // 注册关机/熄屏待机广播（支持遥控器电源键与小爱音箱语音关机）
+        registerPowerStateReceiver();
+
+        wasHdmiActive = isHdmiActive();
+
         // 后台守护与端口检测线程：定期检测自愈守护与 HDMI 活跃流
         backgroundExecutor = Executors.newSingleThreadScheduledExecutor();
         backgroundExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -71,6 +82,7 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
                     if (p != cachedStreamingPort) {
                         cachedStreamingPort = p;
                     }
+                    checkHdmiTransition();
                 } catch (Exception ignored) {}
             }
         }, 500, 1000, TimeUnit.MILLISECONDS);
@@ -95,6 +107,46 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
         }
     }
 
+    private void registerPowerStateReceiver() {
+        try {
+            powerStateReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent == null || intent.getAction() == null) return;
+                    String action = intent.getAction();
+                    Log.i(TAG, "PowerStateReceiver received action: " + action);
+
+                    // 检查是否是关机 / 熄屏待机广播（遥控器按键、定时或小爱语音触发）
+                    if (Intent.ACTION_SCREEN_OFF.equals(action) ||
+                        Intent.ACTION_SHUTDOWN.equals(action) ||
+                        "mitv.intent.action.POWER_OFF".equals(action) ||
+                        "com.xiaomi.mitv.action.POWER_OFF".equals(action) ||
+                        "android.intent.action.QUICKBOOT_POWEROFF".equals(action)) {
+
+                        if (prefs != null && prefs.getBoolean("power_standby", true)) {
+                            String nasIp = prefs.getString("nas_ip", "192.168.31.2");
+                            String nasPort = prefs.getString("nas_port", "9999");
+                            Log.i(TAG, "TV powering off/sleeping -> putting NAS into standby");
+                            apiClient.ensureStandbyAsync("http://" + nasIp + ":" + nasPort, null);
+                            wasHdmiActive = false;
+                        }
+                    }
+                }
+            };
+
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(Intent.ACTION_SCREEN_OFF);
+            filter.addAction(Intent.ACTION_SHUTDOWN);
+            filter.addAction("mitv.intent.action.POWER_OFF");
+            filter.addAction("com.xiaomi.mitv.action.POWER_OFF");
+            filter.addAction("android.intent.action.QUICKBOOT_POWEROFF");
+            registerReceiver(powerStateReceiver, filter);
+            Log.i(TAG, "PowerStateReceiver registered successfully");
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to register PowerStateReceiver: " + e.getMessage());
+        }
+    }
+
     /**
      * 自愈守护：若第三方应用覆盖了 ENABLED_ACCESSIBILITY_SERVICES，自动恢复追加
      */
@@ -112,6 +164,40 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
         } catch (Exception ignored) {}
     }
 
+    /**
+     * 智能信号源出入监听：
+     * 切入 HDMI 自动安全唤醒 NAS 桌面；切出 HDMI 自动联动休眠 NAS
+     */
+    private synchronized void checkHdmiTransition() {
+        boolean currentActive = isHdmiActive();
+        long now = System.currentTimeMillis();
+        if (now - lastTransitionTime < 600) {
+            return; // 过滤高频短时过渡事件
+        }
+
+        if (currentActive && !wasHdmiActive) {
+            wasHdmiActive = true;
+            lastTransitionTime = now;
+            Log.i(TAG, "HDMI active state changed -> ENTERED (Active)");
+            if (prefs != null && prefs.getBoolean("auto_wake_on_enter", true)) {
+                String nasIp = prefs.getString("nas_ip", "192.168.31.2");
+                String nasPort = prefs.getString("nas_port", "9999");
+                Log.i(TAG, "Triggering auto wake for NAS HDMI desktop...");
+                apiClient.ensureWakeAsync("http://" + nasIp + ":" + nasPort, null);
+            }
+        } else if (!currentActive && wasHdmiActive) {
+            wasHdmiActive = false;
+            lastTransitionTime = now;
+            Log.i(TAG, "HDMI active state changed -> EXITED (Inactive)");
+            if (prefs != null && prefs.getBoolean("auto_standby_on_exit", true)) {
+                String nasIp = prefs.getString("nas_ip", "192.168.31.2");
+                String nasPort = prefs.getString("nas_port", "9999");
+                Log.i(TAG, "Triggering auto standby/pause for NAS HDMI desktop...");
+                apiClient.ensureStandbyAsync("http://" + nasIp + ":" + nasPort, null);
+            }
+        }
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -119,6 +205,11 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
         if (settingsObserver != null) {
             try {
                 getContentResolver().unregisterContentObserver(settingsObserver);
+            } catch (Exception ignored) {}
+        }
+        if (powerStateReceiver != null) {
+            try {
+                unregisterReceiver(powerStateReceiver);
             } catch (Exception ignored) {}
         }
         if (backgroundExecutor != null) {
@@ -136,6 +227,7 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             if (event.getPackageName() != null) currentPackageName = event.getPackageName().toString();
             if (event.getClassName() != null) currentClassName = event.getClassName().toString();
             Log.d(TAG, "Window changed: pkg=" + currentPackageName + ", cls=" + currentClassName);
+            checkHdmiTransition();
         }
     }
 
@@ -150,6 +242,20 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
         boolean isServiceEnabled = prefs.getBoolean("service_enabled", true);
         if (!isServiceEnabled) {
             return false;
+        }
+
+        // 电源键处理：按下时若启用了电源联动，异步联动 NAS 待机休眠
+        if (keyCode == KeyEvent.KEYCODE_POWER) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                Log.i(TAG, "Power key pressed -> triggering NAS standby");
+                if (prefs != null && prefs.getBoolean("power_standby", true)) {
+                    String nasIp = prefs.getString("nas_ip", "192.168.31.2");
+                    String nasPort = prefs.getString("nas_port", "9999");
+                    apiClient.ensureStandbyAsync("http://" + nasIp + ":" + nasPort, null);
+                    wasHdmiActive = false;
+                }
+            }
+            return false; // 保留系统原生电源响应
         }
 
         if (currentPackageName == null || currentPackageName.isEmpty()) {
@@ -169,27 +275,14 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             return false;
         }
 
-        // 端口过滤：如果用户指定了监听端口，且检测到当前端口不在列表中，则放行
-        int activePort = cachedStreamingPort;
-        Set<String> selectedPorts = prefs.getStringSet("selected_hdmi_ports", null);
-        if (selectedPorts != null && !selectedPorts.isEmpty()) {
-            if (activePort > 0) {
-                String portKey = "HDMI " + activePort;
-                if (!selectedPorts.contains(portKey)) {
-                    return false;
-                }
-            }
-        }
-
         String nasIp = prefs.getString("nas_ip", "192.168.31.2");
         String nasPort = prefs.getString("nas_port", "9999");
         String nasBaseUrl = "http://" + nasIp + ":" + nasPort;
 
-        // 音量键与电源键绝不拦截，保留系统全局功能
+        // 音量键绝不拦截，保留系统全局功能
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || 
             keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || 
-            keyCode == KeyEvent.KEYCODE_VOLUME_MUTE ||
-            keyCode == KeyEvent.KEYCODE_POWER) {
+            keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
             return false;
         }
 
@@ -277,20 +370,32 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             return false;
         }
 
-        // 3. 通用模式（若用户在非小米电视或投影仪上开启了“通用模式”）
-        boolean genericMode = prefs.getBoolean("generic_hdmi_mode", false);
+        // 3. 端口过滤：若用户指定了生效端口且检测到当前端口不在列表中，放行
+        int activePort = cachedStreamingPort;
+        Set<String> selectedPorts = prefs != null ? prefs.getStringSet("selected_hdmi_ports", null) : null;
+        if (selectedPorts != null && !selectedPorts.isEmpty()) {
+            if (activePort > 0) {
+                String portKey = "HDMI " + activePort;
+                if (!selectedPorts.contains(portKey)) {
+                    return false;
+                }
+            }
+        }
+
+        // 4. 通用模式（若用户在非小米电视或投影仪上开启了“通用模式”）
+        boolean genericMode = prefs != null && prefs.getBoolean("generic_hdmi_mode", false);
         if (genericMode) {
             return true;
         }
 
-        // 4. 小米电视全屏 HDMI 专属判定：
+        // 5. 小米电视全屏 HDMI 专属判定：
         // 前台包名为小米电视官方播放器 com.xiaomi.mitv.tvplayer，或类名包含 ExternalSourceActivity
         if ("com.xiaomi.mitv.tvplayer".equals(currentPackageName) ||
             (currentClassName != null && currentClassName.contains("ExternalSourceActivity"))) {
             return true;
         }
 
-        // 5. 交互窗口快速探针（官方 Accessibility API，无 SELinux 风险）
+        // 6. 交互窗口快速探针（官方 Accessibility API）
         try {
             AccessibilityNodeInfo root = getRootInActiveWindow();
             if (root != null && root.getPackageName() != null) {
@@ -301,7 +406,7 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             }
         } catch (Exception ignored) {}
 
-        // 6. 其他品牌电视全屏 HDMI 播放器
+        // 7. 其他品牌电视全屏 HDMI 播放器
         if (currentPackageName != null) {
             if (currentPackageName.contains("com.sony.dtv.tvinput") || 
                 currentPackageName.contains("com.sony.dtv.intent.action.ACTION_HDMI") ||
