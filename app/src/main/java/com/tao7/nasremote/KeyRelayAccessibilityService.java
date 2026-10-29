@@ -42,7 +42,7 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
         super.onServiceConnected();
         isServiceConnected = true;
         apiClient = new NasApiClient();
-        prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs = AccessibilityHelper.getDevicePrefs(this);
 
         AccessibilityServiceInfo info = getServiceInfo();
         if (info == null) {

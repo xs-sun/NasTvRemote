@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
 import android.util.Log;
 
 public class BootReceiver extends BroadcastReceiver {
@@ -15,7 +14,7 @@ public class BootReceiver extends BroadcastReceiver {
         String action = intent != null ? intent.getAction() : "null";
         Log.i(TAG, "BootReceiver received action: " + action);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences prefs = AccessibilityHelper.getDevicePrefs(context);
         boolean autostart = prefs.getBoolean("boot_autostart", true);
         boolean userDisabled = prefs.getBoolean("user_disabled", false);
 

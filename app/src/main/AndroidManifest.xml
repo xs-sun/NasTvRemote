@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.tao7.nasremote"
-    android:versionCode="7"
-    android:versionName="1.1.5">
+    android:versionCode="8"
+    android:versionName="1.1.6">
 
     <uses-sdk
         android:minSdkVersion="21"
@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.DUMP" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
+    <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS" />
 
     <uses-feature
         android:name="android.software.leanback"
@@ -44,6 +47,7 @@
 
         <service
             android:name=".KeyRelayAccessibilityService"
+            android:directBootAware="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>
@@ -54,8 +58,43 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <service
+            android:name=".RevivalListener"
+            android:directBootAware="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".RevivalAccountService"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
+        </service>
+
+        <service
+            android:name=".RevivalSyncService"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data
+                android:name="android.content.SyncAdapter"
+                android:resource="@xml/sync_adapter" />
+        </service>
+
         <receiver
             android:name=".BootReceiver"
+            android:directBootAware="true"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -64,6 +103,12 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="android.intent.action.USER_PRESENT" />
+                <action android:name="android.intent.action.ACTION_BOOT_IPO" />
+                <action android:name="mitv.action.STR_BOOT_COMPLETED" />
+                <action android:name="com.xiaomi.mitv.action.STR_BOOT_COMPLETED" />
+                <action android:name="mitv.intent.action.STARTAPPS_PRIORITY_HIGH" />
+                <action android:name="mitv.intent.action.STARTAPPS_PRIORITY_HIGH_PENDING" />
+                <action android:name="mitv.intent.action.STARTAPPS_PRIORITY_NORMAL_PENDING" />
             </intent-filter>
         </receiver>
     </application>
