@@ -126,8 +126,8 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
                         if (prefs != null && prefs.getBoolean("power_standby", true)) {
                             String nasIp = prefs.getString("nas_ip", "192.168.31.2");
                             String nasPort = prefs.getString("nas_port", "9999");
-                            Log.i(TAG, "TV powering off/sleeping -> pausing NAS playback safely");
-                            apiClient.ensurePauseAndHomeAsync("http://" + nasIp + ":" + nasPort, null);
+                            Log.i(TAG, "TV powering off/sleeping -> triggering deep standby (kms-off) safely");
+                            apiClient.ensureDeepStandbyAsync("http://" + nasIp + ":" + nasPort, null);
                             wasHdmiActive = false;
                         }
                     }
@@ -192,8 +192,8 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             if (prefs != null && prefs.getBoolean("auto_standby_on_exit", true)) {
                 String nasIp = prefs.getString("nas_ip", "192.168.31.2");
                 String nasPort = prefs.getString("nas_port", "9999");
-                Log.i(TAG, "Triggering safe pause/home for NAS HDMI desktop...");
-                apiClient.ensurePauseAndHomeAsync("http://" + nasIp + ":" + nasPort, null);
+                Log.i(TAG, "Triggering deep standby (kms-off) for NAS HDMI desktop...");
+                apiClient.ensureDeepStandbyAsync("http://" + nasIp + ":" + nasPort, null);
             }
         }
     }
@@ -244,14 +244,14 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             return false;
         }
 
-        // 电源键处理：按下时若启用了电源联动，异步联动 NAS 暂停播放
+        // 电源键处理：按下时若启用了电源联动，异步联动 NAS 深度休眠 (kms-off)
         if (keyCode == KeyEvent.KEYCODE_POWER) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.i(TAG, "Power key pressed -> safely pausing NAS playback");
+                Log.i(TAG, "Power key pressed -> triggering deep standby (kms-off) for NAS");
                 if (prefs != null && prefs.getBoolean("power_standby", true)) {
                     String nasIp = prefs.getString("nas_ip", "192.168.31.2");
                     String nasPort = prefs.getString("nas_port", "9999");
-                    apiClient.ensurePauseAndHomeAsync("http://" + nasIp + ":" + nasPort, null);
+                    apiClient.ensureDeepStandbyAsync("http://" + nasIp + ":" + nasPort, null);
                     wasHdmiActive = false;
                 }
             }

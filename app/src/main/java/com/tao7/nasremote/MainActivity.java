@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
 
         switchAutoStandby.setOnCheckedChangeListener((btn, isChecked) -> {
             prefs.edit().putBoolean("auto_standby_on_exit", isChecked).apply();
-            appendLog(isChecked ? "已启用切出 HDMI / 返回桌面自动休眠 NAS (暂停播放)" : "已停用切出 HDMI 自动休眠");
+            appendLog(isChecked ? "已启用切出 HDMI / 返回桌面自动深度休眠 NAS (断显卡功耗)" : "已停用切出 HDMI 自动休眠");
         });
 
         switchPowerStandby.setOnCheckedChangeListener((btn, isChecked) -> {
