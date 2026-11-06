@@ -126,8 +126,8 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
                         if (prefs != null && prefs.getBoolean("power_standby", true)) {
                             String nasIp = prefs.getString("nas_ip", "192.168.31.2");
                             String nasPort = prefs.getString("nas_port", "9999");
-                            Log.i(TAG, "TV powering off/sleeping -> putting NAS into standby");
-                            apiClient.ensureStandbyAsync("http://" + nasIp + ":" + nasPort, null);
+                            Log.i(TAG, "TV powering off/sleeping -> pausing NAS playback safely");
+                            apiClient.ensurePauseAndHomeAsync("http://" + nasIp + ":" + nasPort, null);
                             wasHdmiActive = false;
                         }
                     }
@@ -192,8 +192,8 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             if (prefs != null && prefs.getBoolean("auto_standby_on_exit", true)) {
                 String nasIp = prefs.getString("nas_ip", "192.168.31.2");
                 String nasPort = prefs.getString("nas_port", "9999");
-                Log.i(TAG, "Triggering auto standby/pause for NAS HDMI desktop...");
-                apiClient.ensureStandbyAsync("http://" + nasIp + ":" + nasPort, null);
+                Log.i(TAG, "Triggering safe pause/home for NAS HDMI desktop...");
+                apiClient.ensurePauseAndHomeAsync("http://" + nasIp + ":" + nasPort, null);
             }
         }
     }
@@ -244,14 +244,14 @@ public class KeyRelayAccessibilityService extends AccessibilityService {
             return false;
         }
 
-        // 电源键处理：按下时若启用了电源联动，异步联动 NAS 待机休眠
+        // 电源键处理：按下时若启用了电源联动，异步联动 NAS 暂停播放
         if (keyCode == KeyEvent.KEYCODE_POWER) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.i(TAG, "Power key pressed -> triggering NAS standby");
+                Log.i(TAG, "Power key pressed -> safely pausing NAS playback");
                 if (prefs != null && prefs.getBoolean("power_standby", true)) {
                     String nasIp = prefs.getString("nas_ip", "192.168.31.2");
                     String nasPort = prefs.getString("nas_port", "9999");
-                    apiClient.ensureStandbyAsync("http://" + nasIp + ":" + nasPort, null);
+                    apiClient.ensurePauseAndHomeAsync("http://" + nasIp + ":" + nasPort, null);
                     wasHdmiActive = false;
                 }
             }

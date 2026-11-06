@@ -52,31 +52,17 @@ public class NasApiClient {
     }
 
     /**
-     * 智能安全唤醒（幂等保护）：
-     * 先发送安全探针判断当前状态，如果 NAS 处于待机状态（reason: device_standby），
-     * 则发送 standby 唤醒；如果已经唤醒，则绝不重复发送，杜绝误触睡眠。
+     * 智能安全唤醒：如果处于待机/主页，发送主页或恢复指令
      */
     public void ensureWakeAsync(final String nasBaseUrl, final Callback callback) {
         executor.execute(() -> {
             try {
                 String probeResp = sendCommandSyncInternal(nasBaseUrl, "up");
                 if (probeResp != null && probeResp.contains("\"device_standby\"")) {
-                    Log.i(TAG, "[AutoWake] Probe detected NAS is in standby -> sending 'standby' to wake up");
-                    sendCommandAsync(nasBaseUrl, "standby", new Callback() {
-                        @Override
-                        public void onSuccess() {
-                            Log.i(TAG, "[AutoWake] Wake-up command executed successfully!");
-                            if (callback != null) callback.onSuccess();
-                        }
-
-                        @Override
-                        public void onError(String msg) {
-                            Log.w(TAG, "[AutoWake] Wake-up command failed: " + msg);
-                            if (callback != null) callback.onError(msg);
-                        }
-                    });
+                    Log.i(TAG, "[AutoWake] Probe detected NAS is in standby -> sending 'home' to resume");
+                    sendCommandAsync(nasBaseUrl, "home", callback);
                 } else {
-                    Log.i(TAG, "[AutoWake] NAS is already awake or probe returned normal -> no wake needed");
+                    Log.i(TAG, "[AutoWake] NAS is already awake or probe returned normal");
                     if (callback != null) callback.onSuccess();
                 }
             } catch (Exception e) {
@@ -87,20 +73,23 @@ public class NasApiClient {
     }
 
     /**
-     * 联动休眠待机：直接发送 standby 使得 NAS 暂停播放并切断 HDMI 输出
+     * 安全休眠/退出控制（安全模式）：
+     * 绿联 11月3日新版固件将 standby 升级为了物理断电级深度待机（杀进程+写磁盘标记导致 404 死锁）。
+     * 因此退出 HDMI 或电视关机时，改为发送 'pause' 暂停播放 + 'home' 返回桌面，
+     * 既达成离开自动暂停播放、节省 NAS 解码功耗的目的，又绝对不会让 HDMI 桌面进程崩溃或死锁！
      */
-    public void ensureStandbyAsync(final String nasBaseUrl, final Callback callback) {
-        Log.i(TAG, "[AutoStandby] Sending 'standby' command to NAS...");
-        sendCommandAsync(nasBaseUrl, "standby", new Callback() {
+    public void ensurePauseAndHomeAsync(final String nasBaseUrl, final Callback callback) {
+        Log.i(TAG, "[AutoPause] Sending 'pause' to stop video playback safely...");
+        sendCommandAsync(nasBaseUrl, "pause", new Callback() {
             @Override
             public void onSuccess() {
-                Log.i(TAG, "[AutoStandby] NAS entered standby successfully");
+                Log.i(TAG, "[AutoPause] Video paused successfully");
                 if (callback != null) callback.onSuccess();
             }
 
             @Override
             public void onError(String msg) {
-                Log.w(TAG, "[AutoStandby] Failed to put NAS in standby: " + msg);
+                Log.w(TAG, "[AutoPause] Pause attempt error (may already be paused/on home): " + msg);
                 if (callback != null) callback.onError(msg);
             }
         });
